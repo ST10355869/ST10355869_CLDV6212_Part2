@@ -1,0 +1,116 @@
+﻿@model SemesterTwo.Models.CustomerProfile
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 600px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="file"],
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #1e90ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background-color: #75b3f0;
+            }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h2>Manage Your Content</h2>
+
+        <form asp-action="UploadImage" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="file">Upload Picture:</label>
+                <input type="file" name="file" id="file" />
+            </div>
+            <button type="submit">Upload</button>
+        </form>
+
+        <form asp-action="AddCustomerProfile" method="post">
+            <label for="file">Enter customer details:</label>
+            <label for="file"> </label>
+            <div class="form-group">
+                <label for="FirstName">First Name:</label>
+                <input type="text" name="FirstName" placeholder="First Name" id="FirstName" />
+            </div>
+            <div class="form-group">
+                <label for="LastName">Last Name:</label>
+                <input type="text" name="LastName" placeholder="Last Name" id="LastName" />
+            </div>
+            <div class="form-group">
+                <label for="Email">Email:</label>
+                <input type="email" name="Email" placeholder="Email" id="Email" />
+            </div>
+            <div class="form-group">
+                <label for="PhoneNumber">Phone Number:</label>
+                <input type="text" name="PhoneNumber" placeholder="Phone Number" id="PhoneNumber" />
+            </div>
+            <button type="submit">Add Profile</button>
+        </form>
+
+        <form asp-action="ProcessOrder" method="post">
+            <div class="form-group">
+                <label for="orderId">Enter Order ID:</label>
+                <input type="text" name="orderId" placeholder="Order ID" id="orderId" />
+            </div>
+            <button type="submit">Process Order</button>
+        </form>
+
+        <form asp-action="UploadContract" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="contractFile">Upload Contract:</label>
+                <input type="file" name="file" id="contractFile" />
+            </div>
+            <button type="submit">Upload Contract</button>
+        </form>
+    </div>
+</body>
+</html>
