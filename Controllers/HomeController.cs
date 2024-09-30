@@ -2,16 +2,20 @@ using Microsoft.AspNetCore.Mvc;
 using SemesterTwo.Models;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace SemesterTwo.Controllers
 {
     public class HomeController : Controller
     {
         private readonly HttpClient _httpClient;
+        private readonly ILogger<HomeController> _logger;
 
-        public HomeController(HttpClient httpClient)
+        public HomeController(HttpClient httpClient, ILogger<HomeController> logger)
         {
             _httpClient = httpClient;
+            _logger = logger;
         }
 
         public IActionResult Index()
@@ -25,6 +29,7 @@ namespace SemesterTwo.Controllers
         {
             if (file == null || file.Length == 0)
             {
+                _logger.LogWarning("No file uploaded.");
                 return BadRequest("No file uploaded.");
             }
 
@@ -45,6 +50,7 @@ namespace SemesterTwo.Controllers
             }
 
             ViewBag.Error = "Failed to upload image.";
+            _logger.LogError("Failed to upload image.");
             return View("Error");
         }
 
@@ -54,6 +60,7 @@ namespace SemesterTwo.Controllers
         {
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Invalid profile data.");
                 return BadRequest("Invalid profile data.");
             }
 
@@ -66,6 +73,7 @@ namespace SemesterTwo.Controllers
             }
 
             ViewBag.Error = "Failed to add customer profile.";
+            _logger.LogError("Failed to add customer profile.");
             return View("Error");
         }
 
@@ -84,9 +92,9 @@ namespace SemesterTwo.Controllers
             }
 
             ViewBag.Error = "Failed to process order.";
+            _logger.LogError("Failed to process order.");
             return View("Error");
         }
-
 
         // Azure Function to upload a file to Azure File Share
         [HttpPost]
@@ -94,6 +102,7 @@ namespace SemesterTwo.Controllers
         {
             if (file == null || file.Length == 0)
             {
+                _logger.LogWarning("No file uploaded.");
                 return BadRequest("No file uploaded.");
             }
 
@@ -112,12 +121,31 @@ namespace SemesterTwo.Controllers
             }
 
             ViewBag.Error = "Failed to upload contract.";
+            _logger.LogError("Failed to upload contract.");
             return View("Error");
         }
 
         public IActionResult Privacy()
         {
             return View();
+        }
+
+        public IActionResult Error()
+        {
+            _logger.LogError("An error occurred.");
+            return View();
+        }
+
+
+        public IActionResult Error(string message)
+        {
+            var errorModel = new ErrorViewModel
+            {
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                Message = message // Pass the error message to the view model
+            };
+
+            return View(errorModel);
         }
     }
 }

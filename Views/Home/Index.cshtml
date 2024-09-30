@@ -24,10 +24,6 @@
             margin: 0 auto;
         }
 
-        form {
-            margin-bottom: 20px;
-        }
-
         input[type="text"],
         input[type="email"],
         input[type="file"],
@@ -51,15 +47,6 @@
             button:hover {
                 background-color: #75b3f0;
             }
-
-        h2 {
-            text-align: center;
-            color: #333;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
     </style>
 </head>
 <body>
@@ -75,8 +62,6 @@
         </form>
 
         <form asp-action="AddCustomerProfile" method="post">
-            <label for="file">Enter customer details:</label>
-            <label for="file"> </label>
             <div class="form-group">
                 <label for="FirstName">First Name:</label>
                 <input type="text" name="FirstName" placeholder="First Name" id="FirstName" />

@@ -1,6 +1,8 @@
-using SemesterTwo.Services;
-using Microsoft.Extensions.Http;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using SemesterTwo.Controllers;
+using SemesterTwo.Services;
 
 namespace ST10355869_CLDV6212_Part1
 {
@@ -13,7 +15,8 @@ namespace ST10355869_CLDV6212_Part1
             // Add services to the container.
             builder.Services.AddControllersWithViews();
             builder.Services.AddHttpClient();
-            // Register your custom services
+
+            // Register custom services
             builder.Services.AddSingleton<BlobService>();
             builder.Services.AddSingleton<TableService>();
             builder.Services.AddSingleton<QueueService>();
@@ -24,17 +27,12 @@ namespace ST10355869_CLDV6212_Part1
                 client.BaseAddress = new Uri("https://st10355869FunctionApp.azurewebsites.net");
             });
 
-
-            // Register HttpClient factory
-            builder.Services.AddHttpClient();
-
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Home/Error");
-                
                 app.UseHsts();
             }
 
