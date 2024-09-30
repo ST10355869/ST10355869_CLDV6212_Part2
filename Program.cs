@@ -1,4 +1,5 @@
 using SemesterTwo.Services;
+using Microsoft.Extensions.Http;
 
 namespace ST10355869_CLDV6212_Part1
 {
@@ -10,7 +11,7 @@ namespace ST10355869_CLDV6212_Part1
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
-
+            builder.Services.AddHttpClient();
             // Register your custom services
             builder.Services.AddSingleton<BlobService>();
             builder.Services.AddSingleton<TableService>();

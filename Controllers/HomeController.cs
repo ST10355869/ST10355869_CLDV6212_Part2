@@ -3,8 +3,9 @@ using SemesterTwo.Models;
 using SemesterTwo.Services;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Http;
 using System.Net.Http;
-using Microsoft.Extensions.Configuration;
+using System.Net.Http.Headers;
 
 namespace SemesterTwo.Controllers
 {
@@ -12,19 +13,18 @@ namespace SemesterTwo.Controllers
     {
         private readonly BlobService _blobService;
         private readonly TableService _tableService;
+        private readonly QueueService _queueService;
         private readonly FileService _fileService;
         private readonly HttpClient _httpClient;
-        private readonly string _storeOrderProcessUrl;
-        private readonly QueueService _queueService;
 
-        public HomeController(BlobService blobService, TableService tableService, QueueService queueService, FileService fileService, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public HomeController(BlobService blobService, TableService tableService, QueueService queueService, FileService fileService, IHttpClientFactory httpClient)
         {
             _blobService = blobService;
             _tableService = tableService;
-            _httpClient = httpClientFactory.CreateClient();
-            _fileService = fileService;
             _queueService = queueService;
-            _storeOrderProcessUrl = configuration["AzureFunctions:StoreOrderProcessURL"];
+            _fileService = fileService;
+            _httpClient = httpClientFactory.CreateClient();
+
         }
 
         public IActionResult Index()
@@ -56,21 +56,8 @@ namespace SemesterTwo.Controllers
         [HttpPost]
         public async Task<IActionResult> ProcessOrder(string orderId)
         {
-            if (string.IsNullOrEmpty(orderId))
-            {
-                return BadRequest("Order ID cannot be null or empty.");
-            }
-
-            try
-            {
-                await _queueService.SendMessageAsync($"Processing order {orderId}");
-                return RedirectToAction("Index");
-            }
-            catch (HttpRequestException ex)
-            {
-                // Handle the error appropriately, e.g., log the error or show a user-friendly message
-                return StatusCode(500, $"Failed to process the order: {ex.Message}");
-            }
+            await _queueService.SendMessageAsync("order-processing", $"Processing order {orderId}");
+            return RedirectToAction("Index");
         }
 
         [HttpPost]
@@ -78,9 +65,34 @@ namespace SemesterTwo.Controllers
         {
             if (file != null)
             {
+                string shareName = "contracts-logs"; // Azure Files share name
+                string fileName = file.FileName; // The name of the file being uploaded
+
+                // The URL for the Azure Function
+                string functionUrl = $"https://st10355869functionapp.azurewebsites.net/api/UploadFile?code=6Yri4seSo50y9XVCtfRrnse1CYa7fEnFwjbtARpX8O-aAzFuHjZFQA%3D%3D&shareName={shareName}&fileName={fileName}";
+
+                // Open a stream to read the file
                 using var stream = file.OpenReadStream();
-                await _fileService.UploadFileAsync("contracts-logs", file.FileName, stream);
+                using var content = new StreamContent(stream);
+
+                // Set the content type
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+                // Make the HTTP POST request to the Azure Function
+                HttpResponseMessage response = await _httpClient.PostAsync(functionUrl, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    // Handle success - e.g., show a success message
+                    TempData["Message"] = "File uploaded successfully.";
+                }
+                else
+                {
+                    // Handle failure - e.g., log error or show an error message
+                    TempData["Message"] = "File upload failed.";
+                }
             }
+
             return RedirectToAction("Index");
         }
         public IActionResult Privacy()

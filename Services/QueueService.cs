@@ -1,30 +1,25 @@
-﻿using System.Net.Http;
-using System.Threading.Tasks;
+﻿using Azure.Storage.Queues;
 using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
+
 
 namespace SemesterTwo.Services
 {
     public class QueueService
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _storeOrderProcessUrl;
+        private readonly QueueServiceClient _queueServiceClient;
 
-        public QueueService(IConfiguration configuration, IHttpClientFactory httpClientFactory)
+        public QueueService(IConfiguration configuration)
         {
-            _httpClient = new HttpClient();
-            _storeOrderProcessUrl = configuration.GetConnectionString("AzureFunctions:StoreOrderProcessURL");
+            _queueServiceClient = new QueueServiceClient(configuration["AzureStorage:ConnectionString"]);
         }
 
-        public async Task SendMessageAsync(string message)
+        public async Task SendMessageAsync(string queueName, string message)
         {
-            var requestUrl = $"{_storeOrderProcessUrl}&message={message}";
-            var response = await _httpClient.PostAsync(requestUrl, null);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                // Handle the error response as needed
-                throw new HttpRequestException($"Failed to send message: {response.StatusCode} - {response.ReasonPhrase}");
-            }
+            var queueClient = _queueServiceClient.GetQueueClient(queueName);
+            await queueClient.CreateIfNotExistsAsync();
+            await queueClient.SendMessageAsync(message);
         }
     }
+
 }
