@@ -1,30 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
 using SemesterTwo.Models;
-using SemesterTwo.Services;
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Http;
 using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Threading.Tasks;
 
 namespace SemesterTwo.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly BlobService _blobService;
-        private readonly TableService _tableService;
-        private readonly QueueService _queueService;
-        private readonly FileService _fileService;
         private readonly HttpClient _httpClient;
 
-        public HomeController(BlobService blobService, TableService tableService, QueueService queueService, FileService fileService, IHttpClientFactory httpClient)
+        public HomeController(HttpClient httpClient)
         {
-            _blobService = blobService;
-            _tableService = tableService;
-            _queueService = queueService;
-            _fileService = fileService;
-            _httpClient = httpClientFactory.CreateClient();
-
+            _httpClient = httpClient;
         }
 
         public IActionResult Index()
@@ -32,69 +19,102 @@ namespace SemesterTwo.Controllers
             return View();
         }
 
+        // Azure Function to upload a product image to Blob Storage
         [HttpPost]
-        public async Task<IActionResult> UploadImage(IFormFile file)
+        public async Task<IActionResult> UploadImage(IFormFile file, string productName)
         {
-            if (file != null)
+            if (file == null || file.Length == 0)
             {
-                using var stream = file.OpenReadStream();
-                await _blobService.UploadBlobAsync("product-images", file.FileName, stream);
+                return BadRequest("No file uploaded.");
             }
-            return RedirectToAction("Index");
+
+            var containerName = "product-images";
+            var blobName = $"{productName}.jpg";
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
+
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadBlob?code=07MVeQzF8knvul-DjBrFWCXV7gtA1NlJPY3cbgJPVVAzAzFuvpoz4w%3D%3D{containerName}&blobName={blobName}";
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadAsStringAsync();
+                ViewBag.Message = result;
+                return RedirectToAction("Details", new { name = productName });
+            }
+
+            ViewBag.Error = "Failed to upload image.";
+            return View("Error");
         }
 
+        // Azure Function to add a customer profile to Table Storage
         [HttpPost]
         public async Task<IActionResult> AddCustomerProfile(CustomerProfile profile)
         {
-            if (ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                await _tableService.AddEntityAsync(profile);
+                return BadRequest("Invalid profile data.");
             }
-            return RedirectToAction("Index");
+
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/StoreTableInfo?code=bJ5RjjvVMyLolpdnMG9aafLM9bIDXJgT7d7ZmZVr-GKQAzFu_clYxA%3D%3D";
+            var response = await _httpClient.PostAsJsonAsync(url, profile);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return RedirectToAction("Index");
+            }
+
+            ViewBag.Error = "Failed to add customer profile.";
+            return View("Error");
         }
 
+        // Azure Function to send a message to Queue Storage
         [HttpPost]
         public async Task<IActionResult> ProcessOrder(string orderId)
         {
-            await _queueService.SendMessageAsync("order-processing", $"Processing order {orderId}");
-            return RedirectToAction("Index");
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/ProcessQueueMessage?code=PcoersGKOlEtRnsFzonQOKJUYz-w3dQwA7JPFxuDx__0AzFu4mt34w%3D%3D";
+            var message = new { queueName = "order-processing", message = $"Processing order {orderId}" };
+
+            var response = await _httpClient.PostAsJsonAsync(url, message);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return RedirectToAction("Index");
+            }
+
+            ViewBag.Error = "Failed to process order.";
+            return View("Error");
         }
 
+
+        // Azure Function to upload a file to Azure File Share
         [HttpPost]
         public async Task<IActionResult> UploadContract(IFormFile file)
         {
-            if (file != null)
+            if (file == null || file.Length == 0)
             {
-                string shareName = "contracts-logs"; // Azure Files share name
-                string fileName = file.FileName; // The name of the file being uploaded
-
-                // The URL for the Azure Function
-                string functionUrl = $"https://st10355869functionapp.azurewebsites.net/api/UploadFile?code=6Yri4seSo50y9XVCtfRrnse1CYa7fEnFwjbtARpX8O-aAzFuHjZFQA%3D%3D&shareName={shareName}&fileName={fileName}";
-
-                // Open a stream to read the file
-                using var stream = file.OpenReadStream();
-                using var content = new StreamContent(stream);
-
-                // Set the content type
-                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-
-                // Make the HTTP POST request to the Azure Function
-                HttpResponseMessage response = await _httpClient.PostAsync(functionUrl, content);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    // Handle success - e.g., show a success message
-                    TempData["Message"] = "File uploaded successfully.";
-                }
-                else
-                {
-                    // Handle failure - e.g., log error or show an error message
-                    TempData["Message"] = "File upload failed.";
-                }
+                return BadRequest("No file uploaded.");
             }
 
-            return RedirectToAction("Index");
+            var fileShareName = "contracts-logs";
+            var fileName = file.FileName;
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
+
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadFile?code=6Yri4seSo50y9XVCtfRrnse1CYa7fEnFwjbtARpX8O-aAzFuHjZFQA%3D%3D{fileShareName}&fileName={fileName}";
+            var response = await _httpClient.PostAsync(url, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                return RedirectToAction("Index");
+            }
+
+            ViewBag.Error = "Failed to upload contract.";
+            return View("Error");
         }
+
         public IActionResult Privacy()
         {
             return View();

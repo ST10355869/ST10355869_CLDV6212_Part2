@@ -1,5 +1,6 @@
 using SemesterTwo.Services;
 using Microsoft.Extensions.Http;
+using SemesterTwo.Controllers;
 
 namespace ST10355869_CLDV6212_Part1
 {
@@ -17,6 +18,12 @@ namespace ST10355869_CLDV6212_Part1
             builder.Services.AddSingleton<TableService>();
             builder.Services.AddSingleton<QueueService>();
             builder.Services.AddSingleton<FileService>();
+
+            builder.Services.AddHttpClient<HomeController>(client =>
+            {
+                client.BaseAddress = new Uri("https://st10355869FunctionApp.azurewebsites.net");
+            });
+
 
             // Register HttpClient factory
             builder.Services.AddHttpClient();
