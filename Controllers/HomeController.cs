@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System;
 using System.Net.Http.Headers;
+using System.Web;
 
 namespace SemesterTwo.Controllers
 {
@@ -104,21 +105,36 @@ namespace SemesterTwo.Controllers
         [HttpPost]
         public async Task<IActionResult> ProcessOrder(string orderId)
         {
-            var url = _configuration["AzureFunctions:StoreOrderProcessURL"];
-            var message = new { queueName = "order-processing", message = $"Processing order {orderId}" };
-
-            var response = await _httpClient.PostAsJsonAsync(url, message);
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                return RedirectToAction("Index");
+                var url = _configuration["AzureFunctions:StoreOrderProcessURL"];
+                var queueName = "order-processing";
+                var message = $"Processing order {orderId}";
+                var fullUrl = $"{url}?queueName={HttpUtility.UrlEncode(queueName)}&message={HttpUtility.UrlEncode(message)}";
+
+                var response = await _httpClient.GetAsync(fullUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation($"Message added to queue: {result}");
+                    return RedirectToAction("Index");
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to add message to queue. Status: {response.StatusCode}, Error: {errorContent}");
+                    ViewBag.Error = $"Failed to add message to queue: {errorContent}";
+                    return View("Error");
+                }
             }
-
-            ViewBag.Error = "Failed to process order.";
-            _logger.LogError("Failed to process order.");
-            return View("Error");
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while adding message to queue");
+                ViewBag.Error = "An unexpected error occurred while adding message to queue.";
+                return View("Error");
+            }
         }
-
 
         // Azure Function to upload a file to Azure File Share
         [HttpPost]
