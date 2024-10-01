@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System;
+using System.Net.Http.Headers;
 
 namespace SemesterTwo.Controllers
 {
@@ -11,12 +13,14 @@ namespace SemesterTwo.Controllers
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<HomeController> _logger;
+        private readonly IConfiguration _configuration;
 
 
-        public HomeController(HttpClient httpClient, ILogger<HomeController> logger)
+        public HomeController(HttpClient httpClient, ILogger<HomeController> logger, IConfiguration configuration)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _configuration = configuration;
         }
 
         public IActionResult Index()
@@ -34,26 +38,42 @@ namespace SemesterTwo.Controllers
                 return BadRequest("No file uploaded.");
             }
 
-            var containerName = "product-images";
-            var blobName = $"{productName}.jpg";
-
-            using var content = new MultipartFormDataContent();
-            content.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
-
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadBlob?{containerName}&blobName={blobName}";
-            var response = await _httpClient.PostAsync(url, content);
-
-            if (response.IsSuccessStatusCode)
+            try
             {
-                var result = await response.Content.ReadAsStringAsync();
-                ViewBag.Message = result;
-                return RedirectToAction("Details", new { name = productName });
-            }
+                var containerName = "product-images";
+                var blobName = $"{productName}-{Guid.NewGuid()}.jpg";
+                var url = $"{_configuration["AzureFunctions:BlobStorage"]}&containerName={containerName}&blobName={blobName}";
 
-            ViewBag.Error = "Failed to upload image.";
-            _logger.LogError("Failed to upload image.");
-            return View("Error");
+                using var content = new MultipartFormDataContent();
+                using var fileContent = new StreamContent(file.OpenReadStream());
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "file", file.FileName);
+
+                var response = await _httpClient.PostAsync(url, content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation($"Image upload successful: {result}");
+                    ViewBag.Message = result;
+                    return RedirectToAction("Index");  // Or wherever you want to redirect after successful upload
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError($"Failed to upload image. Status: {response.StatusCode}, Error: {errorContent}");
+                    ViewBag.Error = $"Failed to upload image: {errorContent}";
+                    return View("Error");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while uploading image");
+                ViewBag.Error = "An unexpected error occurred while uploading the image.";
+                return View("Error");
+            }
         }
+
 
         // Azure Function to add a customer profile to Table Storage
         [HttpPost]
@@ -65,7 +85,7 @@ namespace SemesterTwo.Controllers
                 return BadRequest("Invalid profile data.");
             }
 
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/StoreTableInfo?";
+            var url = _configuration["AzureFunctions:TableStorage"];
             var response = await _httpClient.PostAsJsonAsync(url, profile);
 
             if (response.IsSuccessStatusCode)
@@ -78,11 +98,13 @@ namespace SemesterTwo.Controllers
             return View("Error");
         }
 
+
         // Azure Function to send a message to Queue Storage
+
         [HttpPost]
         public async Task<IActionResult> ProcessOrder(string orderId)
         {
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/ProcessQueueMessage?";
+            var url = _configuration["AzureFunctions:StoreOrderProcessURL"];
             var message = new { queueName = "order-processing", message = $"Processing order {orderId}" };
 
             var response = await _httpClient.PostAsJsonAsync(url, message);
@@ -97,6 +119,7 @@ namespace SemesterTwo.Controllers
             return View("Error");
         }
 
+
         // Azure Function to upload a file to Azure File Share
         [HttpPost]
         public async Task<IActionResult> UploadContract(IFormFile file)
@@ -109,18 +132,17 @@ namespace SemesterTwo.Controllers
 
             var fileShareName = "contracts-logs";
             var fileName = file.FileName;
+            var url = $"{_configuration["AzureFunctions:UploadFileURL"]}&fileShareName={fileShareName}&fileName={fileName}";
 
             using var content = new MultipartFormDataContent();
             content.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
 
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadFile?{fileShareName}&fileName={fileName}";
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
             {
                 return RedirectToAction("Index");
             }
-
             ViewBag.Error = "Failed to upload contract.";
             _logger.LogError("Failed to upload contract.");
             return View("Error");
@@ -136,8 +158,6 @@ namespace SemesterTwo.Controllers
             _logger.LogError("An error occurred.");
             return View();
         }
-
-
      
     }
 }
