@@ -12,6 +12,7 @@ namespace SemesterTwo.Controllers
         private readonly HttpClient _httpClient;
         private readonly ILogger<HomeController> _logger;
 
+
         public HomeController(HttpClient httpClient, ILogger<HomeController> logger)
         {
             _httpClient = httpClient;
@@ -39,7 +40,7 @@ namespace SemesterTwo.Controllers
             using var content = new MultipartFormDataContent();
             content.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
 
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadBlob?code=07MVeQzF8knvul-DjBrFWCXV7gtA1NlJPY3cbgJPVVAzAzFuvpoz4w%3D%3D{containerName}&blobName={blobName}";
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadBlob?{containerName}&blobName={blobName}";
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
@@ -64,7 +65,7 @@ namespace SemesterTwo.Controllers
                 return BadRequest("Invalid profile data.");
             }
 
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/StoreTableInfo?code=bJ5RjjvVMyLolpdnMG9aafLM9bIDXJgT7d7ZmZVr-GKQAzFu_clYxA%3D%3D";
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/StoreTableInfo?";
             var response = await _httpClient.PostAsJsonAsync(url, profile);
 
             if (response.IsSuccessStatusCode)
@@ -81,7 +82,7 @@ namespace SemesterTwo.Controllers
         [HttpPost]
         public async Task<IActionResult> ProcessOrder(string orderId)
         {
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/ProcessQueueMessage?code=PcoersGKOlEtRnsFzonQOKJUYz-w3dQwA7JPFxuDx__0AzFu4mt34w%3D%3D";
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/ProcessQueueMessage?";
             var message = new { queueName = "order-processing", message = $"Processing order {orderId}" };
 
             var response = await _httpClient.PostAsJsonAsync(url, message);
@@ -112,7 +113,7 @@ namespace SemesterTwo.Controllers
             using var content = new MultipartFormDataContent();
             content.Add(new StreamContent(file.OpenReadStream()), "file", file.FileName);
 
-            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadFile?code=6Yri4seSo50y9XVCtfRrnse1CYa7fEnFwjbtARpX8O-aAzFuHjZFQA%3D%3D{fileShareName}&fileName={fileName}";
+            var url = $"https://st10355869functionapp.azurewebsites.net/api/UploadFile?{fileShareName}&fileName={fileName}";
             var response = await _httpClient.PostAsync(url, content);
 
             if (response.IsSuccessStatusCode)
@@ -137,15 +138,6 @@ namespace SemesterTwo.Controllers
         }
 
 
-        public IActionResult Error(string message)
-        {
-            var errorModel = new ErrorViewModel
-            {
-                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
-                Message = message // Pass the error message to the view model
-            };
-
-            return View(errorModel);
-        }
+     
     }
 }
