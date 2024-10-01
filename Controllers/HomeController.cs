@@ -158,6 +158,6 @@ namespace SemesterTwo.Controllers
             _logger.LogError("An error occurred.");
             return View();
         }
-     
+
     }
 }
